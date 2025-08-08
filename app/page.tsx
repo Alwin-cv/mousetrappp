@@ -25,21 +25,31 @@ export default function DynamicInteractionDemo() {
   useEffect(() => {
     const initializeTone = async () => {
       if (typeof window !== 'undefined') {
-        const Tone = (await import('tone')).default
-        ToneRef.current = Tone
+        try {
+          const Tone = await import('tone')
+          ToneRef.current = Tone
 
-        // Replace the frogSoundRef initialization in the initializeTone function
-        frogSoundRef.current = new Tone.Oscillator({
-          frequency: 800, // High frequency for buzzer effect
-          type: 'square' // Square wave creates harsh buzzer sound
-        }).connect(
-          new Tone.Gain(0.3).connect( // Lower volume to prevent ear damage
-            new Tone.Filter({
-              frequency: 1200,
-              type: 'lowpass'
-            }).toDestination()
-          )
-        )
+          // Create the buzzer sound using Tone.Oscillator
+          const oscillator = new Tone.Oscillator({
+            frequency: 800, // High frequency for buzzer effect
+            type: 'square' // Square wave creates harsh buzzer sound
+          })
+
+          const gain = new Tone.Gain(0.3)
+          const filter = new Tone.Filter({
+            frequency: 1200,
+            type: 'lowpass'
+          })
+
+          // Connect the audio chain: Oscillator -> Gain -> Filter -> Destination
+          oscillator.connect(gain)
+          gain.connect(filter)
+          filter.toDestination()
+
+          frogSoundRef.current = oscillator
+        } catch (error) {
+          console.error('Failed to initialize Tone.js:', error)
+        }
       }
     }
 
@@ -69,6 +79,27 @@ export default function DynamicInteractionDemo() {
         frogSoundRef.current.stop(triggerTime + 0.2)
       } catch (error) {
         console.warn('Audio playback error:', error)
+        
+        // If there's an error, try to recreate the oscillator
+        try {
+          const oscillator = new ToneRef.current.Oscillator({
+            frequency: 800,
+            type: 'square'
+          })
+          const gain = new ToneRef.current.Gain(0.3)
+          const filter = new ToneRef.current.Filter({
+            frequency: 1200,
+            type: 'lowpass'
+          })
+          
+          oscillator.connect(gain)
+          gain.connect(filter)
+          filter.toDestination()
+          
+          frogSoundRef.current = oscillator
+        } catch (recreateError) {
+          console.warn('Failed to recreate oscillator:', recreateError)
+        }
       }
     }
   }
